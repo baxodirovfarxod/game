@@ -1,681 +1,314 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P So'z O'yini (No Database)</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #1e293b;
-            --error: #ef4444;
-            --success: #22c55e;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .container {
-            background: var(--card);
-            padding: 2rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 480px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        input, button {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-            outline: none;
-        }
-        input {
-            border: 2px solid #e2e8f0;
-            transition: border-color 0.2s;
-        }
-        input:focus { border-color: var(--primary); }
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-        }
-        button:disabled { background-color: #94a3b8; cursor: not-allowed; }
-        button:active { transform: scale(0.98); }
-        
-        .hidden { display: none !important; }
-        
-        .big-letter {
-            font-size: 5rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 10px 0;
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
-        }
-        
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .results-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-            text-align: left;
-        }
-        .results-row div { flex: 1; }
-        .score-inp { width: 60px; padding: 5px; margin: 0; text-align: center; }
-        .toast {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: #333; color: white; padding: 10px 20px; border-radius: 20px;
-            font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
-        .connection-status {
-            font-size: 12px; color: #64748b; margin-bottom: 15px;
-            background: #f1f5f9; padding: 5px; border-radius: 4px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2P So'z O'yini (PeerJS)</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f8fafc; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
+    .container { background:#fff; width:90%; max-width:480px; padding:18px; border-radius:14px; box-shadow:0 10px 25px rgba(0,0,0,.08); text-align:center; }
+    input, button { width:100%; padding:12px; margin:8px 0; border-radius:10px; box-sizing:border-box; font-size:16px; }
+    input { border:2px solid #e2e8f0; }
+    button { border:0; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
+    .hidden { display:none !important; }
+    .code { font-size:28px; letter-spacing:6px; font-weight:800; background:#f1f5f9; padding:10px; border-radius:12px; }
+    .big-letter { font-size:64px; font-weight:900; color:#2563eb; margin:6px 0; }
+    .status { font-size:12px; color:#475569; background:#f1f5f9; padding:6px 10px; border-radius:8px; }
+    .row { display:flex; gap:8px; justify-content:center; }
+    .score { width:90px; text-align:center; padding:10px; border:2px solid #e2e8f0; border-radius:10px; }
+    .results-row { display:flex; border-bottom:1px solid #e2e8f0; padding:8px 0; text-align:left; }
+    .results-row div { flex:1; }
+  </style>
 </head>
 <body>
+<div class="container">
+  <!-- START -->
+  <div id="view-start">
+    <h2>⚡ P2P So'z O'yini</h2>
+    <p style="color:#64748b;margin-top:-6px;">Server yo'q. Host kod beradi, guest ulanadi.</p>
 
-<div class="container" id="app">
-    <div id="view-start">
-        <h1>So'z O'yini (P2P) ⚡</h1>
-        <p>Server yo'q, to'g'ridan-to'g'ri ulanish!</p>
-        <button onclick="createRoom()">🆕 Yangi Xona Yaratish</button>
-        <div style="margin: 15px 0; border-top: 1px solid #eee; position: relative;">
-            <span style="background: white; padding: 0 10px; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: #888; font-size: 12px;">YOKI</span>
-        </div>
-        <input type="text" id="join-code-input" placeholder="Xona kodi (Code)" style="text-transform: uppercase;">
-        <input type="text" id="join-name-input" placeholder="Ismingiz">
-        <button onclick="joinRoom()" style="background-color: #10b981;">Ulanish (Join)</button>
+    <button id="btnCreate">🆕 Yangi xona</button>
+
+    <div style="margin:10px 0; border-top:1px solid #eee;"></div>
+
+    <input id="joinCode" placeholder="Xona kodi" style="text-transform:uppercase" />
+    <input id="joinName" placeholder="Ismingiz" />
+    <button id="btnJoin" style="background:#10b981;">Ulanish (Join)</button>
+
+    <div class="status" id="startStatus">Tayyor.</div>
+  </div>
+
+  <!-- HOST LOBBY -->
+  <div id="view-host" class="hidden">
+    <h3>Xona yaratildi ✅</h3>
+    <div class="code" id="hostCode">----</div>
+    <div class="status" id="hostStatus">Raqib kutilmoqda...</div>
+    <input id="hostName" placeholder="Sizning ismingiz" />
+    <button id="btnStartGame" disabled>O'yinni boshlash</button>
+  </div>
+
+  <!-- GUEST LOBBY -->
+  <div id="view-guest" class="hidden">
+    <h3>Ulanmoqda...</h3>
+    <div class="status" id="guestStatus">Host topilmoqda...</div>
+  </div>
+
+  <!-- GAME -->
+  <div id="view-game" class="hidden">
+    <div>Harf:</div>
+    <div class="big-letter" id="letter">A</div>
+
+    <input data-k="city" placeholder="Shahar" />
+    <input data-k="name" placeholder="Ism" />
+    <input data-k="food" placeholder="Ovqat" />
+    <input data-k="movie" placeholder="Kino" />
+
+    <button id="btnReady">✅ Tayyor</button>
+    <div class="status" id="gameStatus">So'zlar harf bilan boshlansin.</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="view-results" class="hidden">
+    <h3>Natijalar</h3>
+    <div id="board"></div>
+
+    <div style="margin-top:14px; border-top:2px dashed #e2e8f0; padding-top:10px;">
+      <div style="margin-bottom:6px;">Ballarni qo'lda kiriting:</div>
+      <div class="row">
+        <input class="score" id="s1" type="number" min="0" max="4" placeholder="P1" />
+        <input class="score" id="s2" type="number" min="0" max="4" placeholder="P2" />
+      </div>
+      <button id="btnTotal" style="background:#6366f1;">Jami hisob</button>
+      <div id="total" style="font-weight:800;margin-top:8px;"></div>
     </div>
 
-    <div id="view-lobby-host" class="hidden">
-        <h2>Xona yaratildi!</h2>
-        <p>Do'stingizga shu kodni bering:</p>
-        <div style="font-size: 2rem; font-weight: bold; letter-spacing: 5px; background: #eee; padding: 10px; border-radius: 8px; margin: 10px 0;" id="host-room-code">...</div>
-        <p class="connection-status" id="host-status">Raqib kutilmoqda...</p>
-        <div id="host-loader" class="loader"></div>
-        <div id="host-controls" class="hidden">
-            <p>✅ <b id="opponent-name">...</b> ulandi!</p>
-            <input type="text" id="host-name-input" placeholder="Sizning ismingiz">
-            <button onclick="startGame()">O'yinni Boshlash</button>
-        </div>
-    </div>
-
-    <div id="view-lobby-guest" class="hidden">
-        <h2>Ulanmoqda...</h2>
-        <div class="loader"></div>
-        <p class="connection-status" id="guest-status">Host qidirilmoqda...</p>
-    </div>
-
-    <div id="view-game" class="hidden">
-        <h3>Harf:</h3>
-        <div id="game-letter" class="big-letter">A</div>
-        <p id="timer-text" style="color:red; font-weight:bold;"></p>
-        
-        <form id="game-form" onsubmit="event.preventDefault(); sendReady();">
-            <input type="text" data-key="city" placeholder="Shahar..." required>
-            <input type="text" data-key="name" placeholder="Ism..." required>
-            <input type="text" data-key="food" placeholder="Ovqat..." required>
-            <input type="text" data-key="movie" placeholder="Kino..." required>
-            <button type="submit" id="btn-ready">✅ Tayyor!</button>
-        </form>
-    </div>
-
-    <div id="view-waiting-results" class="hidden">
-        <h2>Javoblar yuborildi!</h2>
-        <p>Raqibingiz tugatishini kuting...</p>
-        <div class="loader"></div>
-    </div>
-
-    <div id="view-results" class="hidden">
-        <h2>Natijalar</h2>
-        <div id="results-board"></div>
-        
-        <div style="margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 10px;">
-            <p>Ballarni hisoblang:</p>
-            <div style="display: flex; gap: 10px; justify-content: center;">
-                <input type="number" id="p1-score" placeholder="P1" class="score-inp">
-                <input type="number" id="p2-score" placeholder="P2" class="score-inp">
-            </div>
-            <button onclick="saveScore()" style="background: #6366f1; margin-top: 10px;">Jami Hisob</button>
-            <p id="total-score-display" style="font-weight: bold; font-size: 1.2rem;"></p>
-        </div>
-        <button onclick="location.reload()" style="background: #94a3b8; margin-top: 20px;">Chiqish / Yangi O'yin</button>
-    </div>
+    <button onclick="location.reload()" style="background:#94a3b8;margin-top:12px;">Yangi o'yin</button>
+  </div>
 </div>
 
-<div id="toast" class="toast">Xabar</div>
-
 <script>
-    // --- GLOBAL STATE ---
-    let peer = null;
-    let conn = null;
-    let myRole = null; // 'host' or 'guest'
-    let myName = "";
-    let opponentName = "Raqib";
-    let currentLetter = "";
-    
-    // PeerJS uchun prefix (IDlar unikal bo'lishi uchun)
-    const APP_PREFIX = "uz-simple-game-v1-"; 
+(() => {
+  const PREFIX = "uzgame-v2-";
 
-    // --- DOM HELPER ---
-    const showView = (id) => {
-        document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
-        document.getElementById(id).classList.remove('hidden');
-    };
-    
-    const toast = (msg) => {
-        const t = document.getElementById('toast');
-        t.innerText = msg;
-        t.style.opacity = 1;
-        setTimeout(() => t.style.opacity = 0, 3000);
-    };
+  let peer = null;
+  let conn = null;
 
-    // --- 1. HOST LOGIC ---
-    function createRoom() {
-        showView('view-lobby-host');
-        
-        // 4 xonali random kod yaratamiz
-        const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-        document.getElementById('host-room-code').innerText = roomCode;
-        
-        // Peer yaratamiz (Biz Servermiz)
-        peer = new Peer(APP_PREFIX + roomCode);
+  let role = null; // host/guest
+  let myName = "";
+  let oppName = "Raqib";
+  let letter = "A";
 
-        peer.on('open', (id) => {
-            document.getElementById('host-status').innerText = "Xona serverda ochildi. Kutilmoqda...";
-        });
+  let myDraft = { city:"", name:"", food:"", movie:"" };
+  let oppDraft = { city:"", name:"", food:"", movie:"" };
 
-        peer.on('connection', (connection) => {
-            conn = connection;
-            setupConnection();
-            document.getElementById('host-status').innerText = "Ulanish o'rnatilmoqda...";
-        });
+  const $ = (id) => document.getElementById(id);
+  const show = (id) => {
+    ["view-start","view-host","view-guest","view-game","view-results"].forEach(v => $(v).classList.add("hidden"));
+    $(id).classList.remove("hidden");
+  };
 
-        peer.on('error', (err) => {
-            alert("Xatolik: Kod band bo'lishi mumkin. Qayta urinib ko'ring.");
-            location.reload();
-        });
-        
-        myRole = 'host';
-    }
+  function setStatus(id, msg){ $(id).textContent = msg; }
 
-    function startGame() {
-        myName = document.getElementById('host-name-input').value.trim();
-        if(!myName) return alert("Ismingizni kiriting!");
-        
-        // Harf tanlash
-        const alphabet = "ABCDEFGHJKLMNOPRSTUVXZ";
-        currentLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
-        
-        // Mehmon (Guest)ga start signalini yuboramiz
-        conn.send({
-            type: 'START',
-            letter: currentLetter,
-            hostName: myName
-        });
-        
-        // O'zimizda boshlaymiz
-        setupGameUI();
-    }
-
-    // --- 2. GUEST LOGIC ---
-    function joinRoom() {
-        const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-        myName = document.getElementById('join-name-input').value.trim();
-        
-        if(!code || !myName) return alert("Kod va ismni kiriting!");
-        
-        showView('view-lobby-guest');
-        myRole = 'guest';
-
-        // O'zimizga random ID olamiz va Hostga ulanamiz
-        peer = new Peer(); // ID avtomatik beriladi
-        
-        peer.on('open', (id) => {
-            document.getElementById('guest-status').innerText = "Serverga ulandik. Hostga ulanmoqda...";
-            conn = peer.connect(APP_PREFIX + code);
-            
-            // Ulanish muvaffaqiyatli bo'lsa
-            conn.on('open', () => {
-                document.getElementById('guest-status').innerText = "Ulandi! Host start bosishini kuting...";
-                setupConnection();
-                // Hostga o'z ismimizni yuboramiz
-                conn.send({ type: 'JOIN', name: myName });
-            });
-            
-            // Xatolik bo'lsa (Host topilmasa)
-            peer.on('error', (err) => {
-                alert("Xona topilmadi. Kodni tekshiring.");
-                location.reload();
-            });
-        });
-    }
-
-    // --- 3. CONNECTION HANDLER (COMMON) ---
-    function setupConnection() {
-        // Ma'lumot kelganda
-        conn.on('data', (data) => {
-            console.log("Received:", data);
-            
-            // HOST tarafi uchun logika
-            if (myRole === 'host') {
-                if (data.type === 'JOIN') {
-                    opponentName = data.name;
-                    document.getElementById('opponent-name').innerText = opponentName;
-                    document.getElementById('host-loader').classList.add('hidden');
-                    document.getElementById('host-controls').classList.remove('hidden');
-                    toast(`${opponentName} xonaga kirdi!`);
-                }
-                if (data.type === 'ANSWERS') {
-                    // Raqib javob berdi. O'yin tugadi.
-                    finishGame(data.answers, data.fromName);
-                }
-            }
-            
-            // GUEST tarafi uchun logika
-            if (myRole === 'guest') {
-                if (data.type === 'START') {
-                    currentLetter = data.letter;
-                    opponentName = data.hostName;
-                    setupGameUI();
-                }
-                if (data.type === 'GAME_OVER') {
-                    // Natijalarni ko'rsatish
-                    showResults(data.hostAnswers, data.guestAnswers, data.hostName, data.guestName);
-                }
-            }
-        });
-        
-        conn.on('close', () => {
-            alert("Raqib o'yinni tark etdi :(");
-            location.reload();
-        });
-    }
-
-    // --- 4. GAMEPLAY ---
-    function setupGameUI() {
-        showView('view-game');
-        document.getElementById('game-letter').innerText = currentLetter;
-        // Inputlarni tozalash
-        document.querySelectorAll('#game-form input').forEach(i => {
-            i.value = '';
-            i.style.borderColor = '#e2e8f0';
-        });
-    }
-
-    function sendReady() {
-        // Validation
-        const inputs = document.querySelectorAll('#game-form input');
-        let answers = {};
-        let isValid = true;
-        
-        inputs.forEach(inp => {
-            const val = inp.value.trim();
-            if(!val.toUpperCase().startsWith(currentLetter)) {
-                inp.style.borderColor = 'red';
-                isValid = false;
-            } else {
-                inp.style.borderColor = 'green';
-                answers[inp.dataset.key] = val;
-            }
-        });
-
-        if(!isValid) {
-            toast(`Hamma so'z "${currentLetter}" harfi bilan boshlanishi shart!`);
-            return;
-        }
-
-        // Host yoki Guest ekanligiga qarab
-        if (myRole === 'host') {
-            // Agar Host birinchi bo'lsa:
-            // Biz javoblarimizni saqlab turamiz, Guestga "Game Over" signalini yuboramiz
-            // Lekin muammo: Guest hali javob yozmagan bo'lsa nima bo'ladi?
-            // Shart: "Qaysidir o‘yinchi “Tayyor” bosishi bilan o‘yin avtomatik tugasin"
-            
-            // Demak, Host tayyor bo'lsa -> O'yin tugaydi.
-            // Host o'z javoblarini yuboradi, Guestnikini esa bo'sh deb hisoblaydi (yoki so'raydi).
-            // Oddiylik uchun: Kim birinchi bossa, o'sha yutgan hisoblanadi va ikkinchi o'yinchining inputlari "lock" bo'ladi.
-            // P2P da real-time input sync qiyin (ko'p request). 
-            // Yechim: Tayyor bosilganda -> Signal yuboramiz "STOP".
-            
-            // Hozirgi kodda sodda variant: Host bossa -> Guestga "Send me your current text immediately" deymiz.
-            // Lekin eng soddasi: Kim tayyor bossa, o'z javobini yuboradi.
-            
-            // Agar men Host bo'lsam va tayyor bo'lsam:
-            // Men o'zimning javoblarimni bilaman. Guestnikini bilmayman.
-            // Bu "lock" sistemasi murakkab.
-            // Keling, talab bo'yicha qilamiz: "Tayyor bosishi bilan o'yin tugasin".
-            // Demak men (Host) tayyor bo'ldim -> Guestga "STOP" yuboraman. Guest borini yuboradi.
-            
-            // Soddalashtirish uchun: Host "Men tayyorman" desa, u o'yinni tugatadi.
-            // Guest'ning javoblari "Yetib kelmadi" bo'lib qoladi (chunki u yubormadi).
-            // Bu adolatsiz.
-            
-            // Yaxshiroq variant:
-            // Men tayyorman -> Ekranni bloklayman -> Javoblarimni yuboraman.
-            // Ikkinchi taraf buni olgach -> U ham majburan bloklanadi va borini yuboradi.
-            
-            showView('view-waiting-results');
-            conn.send({ type: 'ANSWERS', answers: answers, fromName: myName });
-            
-            // Agar men Host bo'lsam, o'zimning javobimni olib, o'yinni tugata olmayman, chunki Guestnikini kutishim kerak.
-            // Guest "ANSWERS" yuborganda, Host natijani hisoblaydi.
-            
-            // Keling, "Finish" logikasini soddalashtiramiz:
-            // Kim tugatsa, `answers` yuboradi.
-        } else {
-            // Guestman
-            showView('view-waiting-results');
-            conn.send({ type: 'ANSWERS', answers: answers, fromName: myName });
-        }
-    }
-
-    // --- 5. FINISH LOGIC (Only Host handles this logic usually, but here P2P is symmetric) ---
-    // Bu yerda Host "hakam" vazifasini bajaradi.
-    
-    let p1Answers = null; // Host
-    let p2Answers = null; // Guest
-    
-    // Aslida bu o'yinda kim birinchi tugatsa, o'yin to'xtaydi.
-    // P2P da buni qilish uchun:
-    // 1. Player A sends "I_FINISHED" with answers.
-    // 2. Player B receives it -> Immediately locks inputs -> Grabs current values -> Sends them back.
-    // 3. Player B shows results.
-    // 4. Player A receives Player B's (incomplete) answers -> Shows results.
-    
-    // Kod murakkablashib ketmasligi uchun shunday qilamiz:
-    // Tayyor bosgan odam javoblarini yuboradi. Ikkinchi odam buni ko'rib, o'zining javoblarini (chala bo'lsa ham) yuboradi.
-    
-    // Lekin yuqoridagi kodda oddiy `conn.send` qildim. 
-    // Keling, `setupConnection` ichidagi 'ANSWERS' qismini to'g'irlaymiz.
-    
-    /* BU O'YIN LOGIKASI QAYTA YOZILDI (HOST SIDE):
-       Host javobni qabul qilganda (Guestdan) yoki o'zi tugatganda:
-    */
-    
-    // --- HOST LOGIC UPDATE ---
-    // Agar men Hostman:
-    // 1. O'zim "Tayyor" bossam -> `p1Answers`ni saqlayman. Guestga "FORCE_STOP" yuboraman.
-    // 2. Guestdan "ANSWERS" kelsa -> `p2Answers`ni saqlayman.
-    // 3. Ikkisi ham bo'lganda natijani chizaman.
-    
-    // Bu juda murakkab. Eng oddiy yo'l:
-    // Kim "Tayyor" bossa, o'zining javoblarini yuboradi. 
-    // Qabul qiluvchi taraf: O'yinni to'xtatadi, o'zining HOZIRGI inputlarini oladi va Natijalar oynasini ochadi.
-    
-    // Qaytadan `sendReady` funksiyasi uchun:
-    // Hozirgi kodda faqat yuborish bor.
-    
-    // Keling, kodni to'liq ishlaydigan qilish uchun `setupConnection`ni biroz o'zgartiramiz.
-    
-    // --- 4.1 REVISED GAME LOGIC FOR P2P ---
-    // Kim tugatsa ham `conn.send({type: 'STOP_GAME', answers: ...})` qiladi.
-    // Qabul qilgan odam: `showResults(remoteAnswers, myCurrentAnswers)` qiladi va javob qaytaradi.
-    
-    // Qayta yozish o'rniga, mavjud kodga moslashtiramiz:
-    // Host markaziy server kabi ishlaydi.
-    
-    // GUEST tugatdi -> Hostga yuboradi. Host o'yinni to'xtatadi, o'ziniki bilan qo'shib GUESTga qaytaradi.
-    // HOST tugatdi -> O'zinikini oladi, Guestga yuboradi ("To'xta va menga javobingni ber" emas, shunchaki "Natijalar mana").
-    // STOP! Talab bo'yicha: "Darhol natijalar oynasi ochilsin".
-    // Demak, raqibning javoblari chala bo'lsa ham ko'rsatish kerak.
-    
-    // Yechim:
-    // Host yoki Guest tugatsa -> `conn.send({type: 'FINISH', myAnswers: ...})`
-    // Qabul qiluvchi: `handleFinish(incomingAnswers)`
-    
-    function handleFinish(incomingAnswers, incomingName) {
-        // O'yin to'xtadi. Hozirgi inputlarni yig'amiz (validatsiyasiz, boricha)
-        const inputs = document.querySelectorAll('#game-form input');
-        let myCurrentAnswers = {};
-        inputs.forEach(inp => myCurrentAnswers[inp.dataset.key] = inp.value);
-        
-        // Natijalarni ko'rsatamiz
-        if (myRole === 'host') {
-            // Men Hostman, `incoming` bu Guestniki. `my` bu meniki.
-            showResults(myCurrentAnswers, incomingAnswers, myName, incomingName);
-            // Guestga ham yuboraman, chunki u hali natijani bilmaydi
-            conn.send({ 
-                type: 'GAME_OVER', 
-                hostAnswers: myCurrentAnswers, 
-                guestAnswers: incomingAnswers,
-                hostName: myName,
-                guestName: incomingName
-            });
-        } else {
-            // Men Guestman. Hostdan signal keldi (u tugatdi).
-            // Demak `incoming` bu Hostniki.
-            showResults(incomingAnswers, myCurrentAnswers, incomingName, myName);
-            // Hostga javob qaytarish shart emas, u allaqachon hisoblab bo'ldi (o'zida).
-            // *Wait*, Host menikini bilishi kerak.
-            
-            // Demak, Host tugatganda, u Guest javobini bilmaydi.
-            // P2Pda "Synchronization" qiyin.
-            
-            // Keling, eng oson va ishonchli usul:
-            // Inputlar har o'zgarganda (onInput) jimjit orqa fonda bir-biriga yuborib turiladi.
-            // Shunda kimdir tugatsa, ikkinchisida allaqachon ma'lumot bor bo'ladi.
-        }
-    }
-    
-    // --- REALTIME INPUT SYNC (Yangi qo'shildi) ---
-    document.querySelectorAll('#game-form input').forEach(inp => {
-        inp.addEventListener('input', (e) => {
-            conn.send({
-                type: 'INPUT_UPDATE',
-                key: e.target.dataset.key,
-                value: e.target.value
-            });
-        });
+  function createPeer(idOrNull){
+    // STUN qo'shildi (ko'p hollarda ulanishni yaxshilaydi)
+    return new Peer(idOrNull ?? undefined, {
+      debug: 2,
+      config: {
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
+      }
     });
-    
-    // Raqib inputlarini saqlash uchun joy
-    let opponentDraftAnswers = { city: '', name: '', food: '', movie: '' };
+  }
 
-    // Connection Handler Update
-    conn && conn.on('data', ...) // bu yuqorida edi, uni update qilamiz:
-    
-    // ---------------------------------------------------------
-    // FINAL LOGIC BLOCK (Pasted into setupConnection below)
-    // ---------------------------------------------------------
- </script>
- 
- <script>
-    // Qayta yuklash funksiyalari to'qnashmasligi uchun, yuqoridagi script blokni tozalab, 
-    // bitta butun mantiqni shu yerda yozaman.
+  function genCode(){
+    return Math.random().toString(36).substring(2,6).toUpperCase();
+  }
 
-    const PREFIX = "uzgame-v1-";
-    let peer, conn;
-    let myRole, myName, opponentName = "Raqib";
-    let currentLetter = "A";
-    let opponentDrafts = { city: '', name: '', food: '', movie: '' };
+  function startGameplay(){
+    show("view-game");
+    $("letter").textContent = letter;
 
-    function init() {
-        document.querySelectorAll('input').forEach(i => i.value = '');
+    // input sync
+    document.querySelectorAll('#view-game input[data-k]').forEach(inp => {
+      inp.value = myDraft[inp.dataset.k] || "";
+      inp.oninput = () => {
+        myDraft[inp.dataset.k] = inp.value;
+        if (conn?.open) conn.send({ t:"DRAFT", k: inp.dataset.k, v: inp.value });
+      };
+    });
+
+    setStatus("gameStatus", `Hamma so'z "${letter}" bilan boshlansin.`);
+  }
+
+  function validateAll(){
+    let ok = true;
+    document.querySelectorAll('#view-game input[data-k]').forEach(inp => {
+      const v = (inp.value || "").trim();
+      if (!v.toUpperCase().startsWith(letter)) { ok = false; inp.style.borderColor = "#ef4444"; }
+      else inp.style.borderColor = "#22c55e";
+    });
+    return ok;
+  }
+
+  function renderResults(p1Name, p1, p2Name, p2){
+    show("view-results");
+    const fields = [
+      ["city","🏙 Shahar"],
+      ["name","👤 Ism"],
+      ["food","🍽 Ovqat"],
+      ["movie","🎬 Kino"],
+    ];
+    let html = `<div class="results-row" style="font-weight:800;">
+      <div>Kategoriya</div><div>${p1Name}</div><div>${p2Name}</div>
+    </div>`;
+    for (const [k,label] of fields){
+      html += `<div class="results-row">
+        <div>${label}</div><div>${(p1[k]||"-")}</div><div>${(p2[k]||"-")}</div>
+      </div>`;
     }
-    init();
+    $("board").innerHTML = html;
+  }
 
-    // VIEW MANAGEMENT
-    const show = (id) => {
-        document.querySelectorAll('.container > div').forEach(d => d.classList.add('hidden'));
-        document.getElementById(id).classList.remove('hidden');
-    }
+  function wireConn(){
+    conn.on("open", () => {
+      if (role === "guest") setStatus("guestStatus", "Ulandi ✅ Host start bosishini kuting...");
+    });
 
-    // --- HOST ---
-    window.createRoom = function() {
-        const code = Math.floor(1000 + Math.random() * 9000); // 4 digit
-        show('view-lobby-host');
-        document.getElementById('host-room-code').innerText = code;
+    conn.on("data", (m) => {
+      if (!m || !m.t) return;
 
-        peer = new Peer(PREFIX + code);
-        myRole = 'host';
+      if (m.t === "JOIN" && role === "host") {
+        oppName = m.name || "Guest";
+        setStatus("hostStatus", `✅ ${oppName} ulandi!`);
+        $("btnStartGame").disabled = false;
+      }
 
-        peer.on('open', () => document.getElementById('host-status').innerText = "Xona tayyor. Kutilyapti...");
-        
-        peer.on('connection', (c) => {
-            conn = c;
-            setupConn();
-        });
-        peer.on('error', (e) => alert("Xatolik: " + e.type));
-    }
-
-    window.startGame = function() {
-        myName = document.getElementById('host-name-input').value || "Host";
-        const chars = "ABCDEFGHJKLMNOPRSTUVXZ";
-        currentLetter = chars[Math.floor(Math.random() * chars.length)];
-        
-        conn.send({ type: 'START', letter: currentLetter, hostName: myName });
+      if (m.t === "START") {
+        letter = m.letter;
+        oppName = m.hostName || oppName;
         startGameplay();
-    }
+      }
 
-    // --- GUEST ---
-    window.joinRoom = function() {
-        const code = document.getElementById('join-code-input').value;
-        myName = document.getElementById('join-name-input').value || "Mehmon";
-        if(!code) return alert("Kod yozing!");
+      if (m.t === "DRAFT") {
+        oppDraft[m.k] = m.v;
+      }
 
-        show('view-lobby-guest');
-        peer = new Peer(); // Auto ID
-        myRole = 'guest';
+      // Kimdir READY bosdi => o'yin tugaydi, natija ko'rsatiladi
+      if (m.t === "READY") {
+        const finisher = m.name || "Raqib";
+        // Qabul qiluvchi ham darhol natijaga o'tadi
+        if (role === "host") {
+          // host natijani ikkala tomonga yuboradi
+          renderResults(myName, myDraft, finisher, m.answers);
 
-        peer.on('open', () => {
-            conn = peer.connect(PREFIX + code);
-            conn.on('open', () => {
-                setupConn();
-                conn.send({ type: 'JOIN', name: myName });
-            });
-            peer.on('error', () => {
-                alert("Xona topilmadi!");
-                location.reload();
-            });
-        });
-    }
+          conn.send({ t:"GAME_OVER", hostName: myName, hostAnswers: myDraft, guestName: finisher, guestAnswers: m.answers });
+        } else {
+          // guest hostdan READY kelsa ham natijani ko'rsatadi (host keyin GAME_OVER yuboradi)
+          renderResults(finisher, m.answers, myName, myDraft);
+        }
+      }
 
-    // --- SHARED CONNECTION LOGIC ---
-    function setupConn() {
-        conn.on('data', (data) => {
-            if(data.type === 'JOIN') {
-                opponentName = data.name;
-                document.getElementById('opponent-name').innerText = opponentName;
-                document.getElementById('host-controls').classList.remove('hidden');
-                document.getElementById('host-loader').classList.add('hidden');
-            }
-            else if(data.type === 'START') {
-                currentLetter = data.letter;
-                opponentName = data.hostName;
-                startGameplay();
-            }
-            else if(data.type === 'INPUT_UPDATE') {
-                // Real-time sync: Raqib yozayotganini saqlab turamiz
-                opponentDrafts[data.key] = data.value;
-            }
-            else if(data.type === 'FINISH') {
-                // Raqib tugatdi!
-                // Bizning inputlarni olamiz
-                const myInputs = getMyInputs();
-                // Natijani ko'rsatamiz
-                renderResults(myInputs, opponentDrafts, myName, opponentName);
-            }
-        });
-        
-        conn.on('close', () => alert("Aloqa uzildi"));
-    }
+      if (m.t === "GAME_OVER" && role === "guest") {
+        renderResults(m.hostName, m.hostAnswers, m.guestName, m.guestAnswers);
+      }
+    });
 
-    function startGameplay() {
-        show('view-game');
-        document.getElementById('game-letter').innerText = currentLetter;
-        
-        // Input o'zgarganda raqibga yuborish
-        document.querySelectorAll('#game-form input').forEach(inp => {
-            inp.addEventListener('input', (e) => {
-                conn.send({
-                    type: 'INPUT_UPDATE',
-                    key: e.target.dataset.key,
-                    value: e.target.value
-                });
-            });
-        });
-    }
+    conn.on("error", (e) => alert("Connection error: " + e));
+    conn.on("close", () => alert("Aloqa uzildi. Qayta urinib ko'ring."));
+  }
 
-    function getMyInputs() {
-        const res = {};
-        document.querySelectorAll('#game-form input').forEach(inp => {
-            res[inp.dataset.key] = inp.value;
-        });
-        return res;
-    }
+  // UI events
+  $("btnCreate").onclick = () => {
+    role = "host";
+    show("view-host");
 
-    // --- GAME FINISH ---
-    window.sendReady = function() {
-        // Validation
-        let valid = true;
-        document.querySelectorAll('#game-form input').forEach(inp => {
-            if(!inp.value.toUpperCase().startsWith(currentLetter)) {
-                inp.style.borderColor = 'red';
-                valid = false;
-            } else inp.style.borderColor = 'green';
-        });
-        
-        if(!valid) return alert(`So'zlar "${currentLetter}" bilan boshlanishi kerak!`);
+    const code = genCode();
+    $("hostCode").textContent = code;
+    setStatus("hostStatus", "Peer serverga ulanmoqda...");
 
-        // Men tugatdim -> Raqibga signal yuboraman
-        conn.send({ type: 'FINISH' });
-        
-        // Natijani o'zimda ochaman
-        renderResults(getMyInputs(), opponentDrafts, myName, opponentName);
-    }
+    peer = createPeer(PREFIX + code);
 
-    function renderResults(myAns, oppAns, me, opp) {
-        show('view-results');
-        const board = document.getElementById('results-board');
-        const fields = ['city', 'name', 'food', 'movie'];
-        
-        let html = `<div class="results-row" style="font-weight:bold;"><div>Kategoriya</div><div>${me}</div><div>${opp}</div></div>`;
-        
-        fields.forEach(f => {
-            html += `
-            <div class="results-row">
-                <div style="text-transform:capitalize; color:#666;">${f}</div>
-                <div>${myAns[f] || '-'}</div>
-                <div>${oppAns[f] || '-'}</div>
-            </div>`;
-        });
-        board.innerHTML = html;
-    }
+    peer.on("open", () => setStatus("hostStatus", "Xona tayyor. Raqib kutilmoqda..."));
+    peer.on("connection", (c) => {
+      conn = c;
+      wireConn();
+    });
+    peer.on("error", (e) => {
+      alert("Peer error: " + e.type + "\nQayta Create qilib ko'ring.");
+      location.reload();
+    });
+  };
 
-    window.saveScore = function() {
-        const p1 = Number(document.getElementById('p1-score').value) || 0;
-        const p2 = Number(document.getElementById('p2-score').value) || 0;
-        document.getElementById('total-score-display').innerText = `Jami: ${p1} : ${p2}`;
-    }
- </script>
+  $("btnJoin").onclick = () => {
+    role = "guest";
+
+    const code = ($("joinCode").value || "").trim().toUpperCase();
+    myName = ($("joinName").value || "").trim();
+    if (!code || !myName) { alert("Kod va ism kiriting!"); return; }
+
+    show("view-guest");
+    setStatus("guestStatus", "Peer tayyorlanmoqda...");
+
+    peer = createPeer(null);
+
+    peer.on("open", () => {
+      setStatus("guestStatus", "Hostga ulanmoqda...");
+      conn = peer.connect(PREFIX + code, { reliable: true });
+
+      conn.on("open", () => {
+        wireConn();
+        conn.send({ t:"JOIN", name: myName });
+      });
+
+      conn.on("error", () => {
+        alert("Xona topilmadi yoki ulanish bloklangan. Kodni tekshiring.");
+        location.reload();
+      });
+    });
+
+    peer.on("error", (e) => {
+      alert("Peer error: " + e.type);
+      location.reload();
+    });
+  };
+
+  $("btnStartGame").onclick = () => {
+    myName = ($("hostName").value || "").trim();
+    if (!myName) { alert("Ismingizni kiriting!"); return; }
+    if (!conn || !conn.open) { alert("Raqib ulanmagan."); return; }
+
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    letter = alphabet[Math.floor(Math.random() * alphabet.length)];
+
+    conn.send({ t:"START", letter, hostName: myName });
+    startGameplay();
+  };
+
+  $("btnReady").onclick = () => {
+    if (!conn || !conn.open) { alert("Ulanish yo'q."); return; }
+    if (!myName) myName = role === "host" ? ($("hostName").value || "Host") : myName;
+
+    if (!validateAll()) { setStatus("gameStatus", "Xato! Hammasi harf bilan boshlansin."); return; }
+
+    conn.send({ t:"READY", name: myName, answers: { ...myDraft } });
+
+    // host bo'lsa ham darhol natijaga o'tmaymiz — host natijani handle qiladi (READY kelganda)
+    // guest bo'lsa: natija hostdan keladi
+    setStatus("gameStatus", "Yuborildi. Natija kutilyapti...");
+  };
+
+  $("btnTotal").onclick = () => {
+    const a = Number($("s1").value || 0);
+    const b = Number($("s2").value || 0);
+    $("total").textContent = `Jami: ${a} : ${b}`;
+  };
+
+  // initial
+  show("view-start");
+})();
+</script>
 </body>
 </html>
