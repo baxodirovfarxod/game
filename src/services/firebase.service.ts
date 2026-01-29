@@ -34,13 +34,13 @@ export class FirebaseService {
 
   // IMPORTANT: Replace this with your actual Firebase config
   private firebaseConfig = {
-    apiKey: "FIREBASE_CONFIG_HERE_apiKey",
-    authDomain: "FIREBASE_CONFIG_HERE_authDomain",
-    databaseURL: "FIREBASE_CONFIG_HERE_databaseURL",
-    projectId: "FIREBASE_CONFIG_HERE_projectId",
-    storageBucket: "FIREBASE_CONFIG_HERE_storageBucket",
-    messagingSenderId: "FIREBASE_CONFIG_HERE_messagingSenderId",
-    appId: "FIREBASE_CONFIG_HERE_appId"
+     apiKey: "AIzaSyAGedkjaQHeNOqZj97QsA1JPJggmCWR2XI",
+  authDomain: "game-7d774.firebaseapp.com",
+  projectId: "game-7d774",
+  storageBucket: "game-7d774.firebasestorage.app",
+  messagingSenderId: "1027421064147",
+  appId: "1:1027421064147:web:41b10454d0f6091ac0fd26",
+  measurementId: "G-EHBT1RKZV0"
   };
 
   constructor() {
