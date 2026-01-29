@@ -1,0 +1,115 @@
+
+<div class="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-slate-200 font-sans">
+  <div class="w-full max-w-2xl mx-auto bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 border border-slate-700">
+    <header class="text-center mb-6">
+      <h1 class="text-3xl md:text-4xl font-bold text-indigo-400 tracking-wider">Word Game</h1>
+      @if (roomCode()) {
+        <div class="mt-4 text-sm font-mono bg-slate-700/50 rounded-md p-2 inline-flex items-center gap-4">
+          <span>Room Code: <strong class="text-amber-400">{{ roomCode() }}</strong></span>
+          <button (click)="copyRoomCode()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-md text-xs font-semibold transition-colors">Copy Link</button>
+        </div>
+      }
+    </header>
+
+    <main>
+      @switch (phase()) {
+        @case ('lobby') {
+          <div class="text-center">
+            @if (!currentPlayer()) {
+              <h2 class="text-xl font-semibold mb-4 text-slate-300">Join the Game</h2>
+              <div class="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+                <input
+                  [(ngModel)]="username"
+                  (keyup.enter)="joinGame()"
+                  placeholder="Enter your username"
+                  class="flex-grow px-4 py-2 rounded-md bg-slate-700 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+                />
+                <button (click)="joinGame()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-md font-bold transition-transform transform hover:scale-105">Join</button>
+              </div>
+            } @else {
+              <p class="text-lg mb-4 text-slate-400">Welcome, <strong class="text-white">{{ currentPlayer()?.name }}</strong>!</p>
+            }
+
+            <div class="mt-8">
+              <h3 class="font-bold text-slate-400 mb-2">Players in Room: ({{ playerList().length }}/2)</h3>
+              <ul class="space-y-2">
+                @for (player of playerList(); track player.id) {
+                  <li class="bg-slate-700/50 p-3 rounded-lg">{{ player.name }}</li>
+                } @empty {
+                  <li class="text-slate-500">Waiting for players...</li>
+                }
+              </ul>
+            </div>
+            
+            @if (canStartGame()) {
+              <button (click)="startGame()" class="mt-8 w-full max-w-xs mx-auto py-3 bg-green-600 hover:bg-green-500 rounded-lg text-lg font-bold transition-transform transform hover:scale-105 shadow-lg">
+                Start Game
+              </button>
+            } @else if (currentPlayer()) {
+               <p class="mt-8 text-slate-500">Waiting for another player to join...</p>
+            }
+          </div>
+        }
+        @case ('playing') {
+          <div class="text-center">
+            <div class="mb-6">
+              <span class="text-slate-400 text-lg">The letter is:</span>
+              <p class="text-8xl font-black text-amber-400 my-2">{{ gameLetter() }}</p>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <input [(ngModel)]="answers().city" placeholder="Shahar (City)" class="input-style" />
+              <input [(ngModel)]="answers().name" placeholder="Ism (Name)" class="input-style" />
+              <input [(ngModel)]="answers().food" placeholder="Ovqat (Food)" class="input-style" />
+              <input [(ngModel)]="answers().movie" placeholder="Kino (Movie)" class="input-style" />
+            </div>
+
+            @if (validationError()) {
+                <p class="text-red-400 mt-4 text-sm">{{ validationError() }}</p>
+            }
+
+            <button (click)="submitAnswers()" class="mt-8 w-full max-w-xs mx-auto py-3 bg-teal-500 hover:bg-teal-400 rounded-lg text-lg font-bold transition-transform transform hover:scale-105 shadow-lg">
+              ✅ Tayyor
+            </button>
+          </div>
+        }
+        @case ('results') {
+          <div>
+            <h2 class="text-2xl font-bold text-center mb-6 text-slate-300">Natijalar (Results)</h2>
+            <p class="text-center mb-6 text-slate-400">The letter was <strong class="text-amber-400 text-2xl">{{ gameLetter() }}</strong></p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              @for (player of playerList(); track player.id; let i = $index) {
+                <div class="bg-slate-700/50 p-4 rounded-lg">
+                  <h3 class="font-bold text-xl text-indigo-400 mb-3 border-b border-slate-600 pb-2">{{ player.name }}</h3>
+                  <ul class="space-y-2 text-slate-300">
+                    <li><strong>City:</strong> {{ player.answers.city }}</li>
+                    <li><strong>Name:</strong> {{ player.answers.name }}</li>
+                    <li><strong>Food:</strong> {{ player.answers.food }}</li>
+                    <li><strong>Movie:</strong> {{ player.answers.movie }}</li>
+                  </ul>
+                  <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Score (0-4)</label>
+                    <input type="number" min="0" max="4" 
+                           [ngModel]="i === 0 ? scorePlayer1() : scorePlayer2()"
+                           (ngModelChange)="$event = $event < 0 ? 0 : ($event > 4 ? 4 : $event); i === 0 ? scorePlayer1.set($event) : scorePlayer2.set($event)"
+                           class="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+                  </div>
+                </div>
+              }
+            </div>
+            <div class="text-center mt-8">
+              <button (click)="saveScores()" class="w-full max-w-xs mx-auto py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-lg font-bold transition-transform transform hover:scale-105 shadow-lg">
+                Save Scores
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </main>
+  </div>
+</div>
+
+<style>
+  .input-style {
+    @apply w-full px-4 py-3 rounded-md bg-slate-700 border border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition text-lg;
+  }
+</style>

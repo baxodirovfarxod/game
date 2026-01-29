@@ -1,314 +1,79 @@
+
 <!DOCTYPE html>
-<html lang="uz">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>P2P So'z O'yini (PeerJS)</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f8fafc; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; }
-    .container { background:#fff; width:90%; max-width:480px; padding:18px; border-radius:14px; box-shadow:0 10px 25px rgba(0,0,0,.08); text-align:center; }
-    input, button { width:100%; padding:12px; margin:8px 0; border-radius:10px; box-sizing:border-box; font-size:16px; }
-    input { border:2px solid #e2e8f0; }
-    button { border:0; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
-    .hidden { display:none !important; }
-    .code { font-size:28px; letter-spacing:6px; font-weight:800; background:#f1f5f9; padding:10px; border-radius:12px; }
-    .big-letter { font-size:64px; font-weight:900; color:#2563eb; margin:6px 0; }
-    .status { font-size:12px; color:#475569; background:#f1f5f9; padding:6px 10px; border-radius:8px; }
-    .row { display:flex; gap:8px; justify-content:center; }
-    .score { width:90px; text-align:center; padding:10px; border:2px solid #e2e8f0; border-radius:10px; }
-    .results-row { display:flex; border-bottom:1px solid #e2e8f0; padding:8px 0; text-align:left; }
-    .results-row div { flex:1; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Word Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 
+    NOTE: Using compat version for easier global access in this single-file style setup.
+    In a typical build-tool environment, you would use modular imports.
+  -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "rxjs": "https://esm.sh/rxjs@^7.8.2?conditions=es2015",
+    "rxjs/operators": "https://esm.sh/rxjs@^7.8.2/operators?conditions=es2015",
+    "rxjs/ajax": "https://esm.sh/rxjs@^7.8.2/ajax?conditions=es2015",
+    "rxjs/webSocket": "https://esm.sh/rxjs@^7.8.2/webSocket?conditions=es2015",
+    "rxjs/testing": "https://esm.sh/rxjs@^7.8.2/testing?conditions=es2015",
+    "rxjs/fetch": "https://esm.sh/rxjs@^7.8.2/fetch?conditions=es2015",
+    "@angular/core": "https://esm.sh/@angular/core@^21.1.2?external=rxjs",
+    "@angular/compiler": "https://esm.sh/@angular/compiler@^21.1.2?external=rxjs",
+    "@angular/platform-browser": "https://esm.sh/@angular/platform-browser@^21.1.2?external=rxjs",
+    "@angular/common": "https://esm.sh/@angular/common@^21.1.2?external=rxjs",
+    "@angular/forms": "https://esm.sh/@angular/forms@^21.1.2?external=rxjs"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
-<body>
-<div class="container">
-  <!-- START -->
-  <div id="view-start">
-    <h2>⚡ P2P So'z O'yini</h2>
-    <p style="color:#64748b;margin-top:-6px;">Server yo'q. Host kod beradi, guest ulanadi.</p>
+<body class="bg-slate-900 text-slate-200">
+  <app-root></app-root>
 
-    <button id="btnCreate">🆕 Yangi xona</button>
+  <!--
+    ==================================================================
+    HOW TO RUN THIS APPLICATION
+    ==================================================================
 
-    <div style="margin:10px 0; border-top:1px solid #eee;"></div>
+    1. SET UP FIREBASE:
+      a. Go to the Firebase Console (https://console.firebase.google.com/).
+      b. Create a new project.
+      c. In your project, go to "Build" > "Realtime Database".
+      d. Click "Create Database" and start in "test mode" for now.
+      e. Go to Project Settings (click the gear icon) > General tab.
+      f. Under "Your apps", click the Web icon (</>).
+      g. Register your app. You will be given a `firebaseConfig` object.
 
-    <input id="joinCode" placeholder="Xona kodi" style="text-transform:uppercase" />
-    <input id="joinName" placeholder="Ismingiz" />
-    <button id="btnJoin" style="background:#10b981;">Ulanish (Join)</button>
+    2. CONFIGURE THE APP:
+      a. Open the file `src/services/firebase.service.ts`.
+      b. Find the `firebaseConfig` constant.
+      c. Replace the placeholder values with the actual values from your Firebase project.
 
-    <div class="status" id="startStatus">Tayyor.</div>
-  </div>
+    3. (Optional) DEPLOY TO GITHUB PAGES:
+      a. This Applet environment simulates a static hosting environment like GitHub pages.
+      b. The generated code is designed to run directly on such a host.
+      c. Once you have your Firebase config in place, you can host these files.
 
-  <!-- HOST LOBBY -->
-  <div id="view-host" class="hidden">
-    <h3>Xona yaratildi ✅</h3>
-    <div class="code" id="hostCode">----</div>
-    <div class="status" id="hostStatus">Raqib kutilmoqda...</div>
-    <input id="hostName" placeholder="Sizning ismingiz" />
-    <button id="btnStartGame" disabled>O'yinni boshlash</button>
-  </div>
-
-  <!-- GUEST LOBBY -->
-  <div id="view-guest" class="hidden">
-    <h3>Ulanmoqda...</h3>
-    <div class="status" id="guestStatus">Host topilmoqda...</div>
-  </div>
-
-  <!-- GAME -->
-  <div id="view-game" class="hidden">
-    <div>Harf:</div>
-    <div class="big-letter" id="letter">A</div>
-
-    <input data-k="city" placeholder="Shahar" />
-    <input data-k="name" placeholder="Ism" />
-    <input data-k="food" placeholder="Ovqat" />
-    <input data-k="movie" placeholder="Kino" />
-
-    <button id="btnReady">✅ Tayyor</button>
-    <div class="status" id="gameStatus">So'zlar harf bilan boshlansin.</div>
-  </div>
-
-  <!-- RESULTS -->
-  <div id="view-results" class="hidden">
-    <h3>Natijalar</h3>
-    <div id="board"></div>
-
-    <div style="margin-top:14px; border-top:2px dashed #e2e8f0; padding-top:10px;">
-      <div style="margin-bottom:6px;">Ballarni qo'lda kiriting:</div>
-      <div class="row">
-        <input class="score" id="s1" type="number" min="0" max="4" placeholder="P1" />
-        <input class="score" id="s2" type="number" min="0" max="4" placeholder="P2" />
-      </div>
-      <button id="btnTotal" style="background:#6366f1;">Jami hisob</button>
-      <div id="total" style="font-weight:800;margin-top:8px;"></div>
-    </div>
-
-    <button onclick="location.reload()" style="background:#94a3b8;margin-top:12px;">Yangi o'yin</button>
-  </div>
-</div>
-
-<script>
-(() => {
-  const PREFIX = "uzgame-v2-";
-
-  let peer = null;
-  let conn = null;
-
-  let role = null; // host/guest
-  let myName = "";
-  let oppName = "Raqib";
-  let letter = "A";
-
-  let myDraft = { city:"", name:"", food:"", movie:"" };
-  let oppDraft = { city:"", name:"", food:"", movie:"" };
-
-  const $ = (id) => document.getElementById(id);
-  const show = (id) => {
-    ["view-start","view-host","view-guest","view-game","view-results"].forEach(v => $(v).classList.add("hidden"));
-    $(id).classList.remove("hidden");
-  };
-
-  function setStatus(id, msg){ $(id).textContent = msg; }
-
-  function createPeer(idOrNull){
-    // STUN qo'shildi (ko'p hollarda ulanishni yaxshilaydi)
-    return new Peer(idOrNull ?? undefined, {
-      debug: 2,
-      config: {
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          { urls: "stun:stun1.l.google.com:19302" }
-        ]
-      }
-    });
-  }
-
-  function genCode(){
-    return Math.random().toString(36).substring(2,6).toUpperCase();
-  }
-
-  function startGameplay(){
-    show("view-game");
-    $("letter").textContent = letter;
-
-    // input sync
-    document.querySelectorAll('#view-game input[data-k]').forEach(inp => {
-      inp.value = myDraft[inp.dataset.k] || "";
-      inp.oninput = () => {
-        myDraft[inp.dataset.k] = inp.value;
-        if (conn?.open) conn.send({ t:"DRAFT", k: inp.dataset.k, v: inp.value });
-      };
-    });
-
-    setStatus("gameStatus", `Hamma so'z "${letter}" bilan boshlansin.`);
-  }
-
-  function validateAll(){
-    let ok = true;
-    document.querySelectorAll('#view-game input[data-k]').forEach(inp => {
-      const v = (inp.value || "").trim();
-      if (!v.toUpperCase().startsWith(letter)) { ok = false; inp.style.borderColor = "#ef4444"; }
-      else inp.style.borderColor = "#22c55e";
-    });
-    return ok;
-  }
-
-  function renderResults(p1Name, p1, p2Name, p2){
-    show("view-results");
-    const fields = [
-      ["city","🏙 Shahar"],
-      ["name","👤 Ism"],
-      ["food","🍽 Ovqat"],
-      ["movie","🎬 Kino"],
-    ];
-    let html = `<div class="results-row" style="font-weight:800;">
-      <div>Kategoriya</div><div>${p1Name}</div><div>${p2Name}</div>
-    </div>`;
-    for (const [k,label] of fields){
-      html += `<div class="results-row">
-        <div>${label}</div><div>${(p1[k]||"-")}</div><div>${(p2[k]||"-")}</div>
-      </div>`;
-    }
-    $("board").innerHTML = html;
-  }
-
-  function wireConn(){
-    conn.on("open", () => {
-      if (role === "guest") setStatus("guestStatus", "Ulandi ✅ Host start bosishini kuting...");
-    });
-
-    conn.on("data", (m) => {
-      if (!m || !m.t) return;
-
-      if (m.t === "JOIN" && role === "host") {
-        oppName = m.name || "Guest";
-        setStatus("hostStatus", `✅ ${oppName} ulandi!`);
-        $("btnStartGame").disabled = false;
-      }
-
-      if (m.t === "START") {
-        letter = m.letter;
-        oppName = m.hostName || oppName;
-        startGameplay();
-      }
-
-      if (m.t === "DRAFT") {
-        oppDraft[m.k] = m.v;
-      }
-
-      // Kimdir READY bosdi => o'yin tugaydi, natija ko'rsatiladi
-      if (m.t === "READY") {
-        const finisher = m.name || "Raqib";
-        // Qabul qiluvchi ham darhol natijaga o'tadi
-        if (role === "host") {
-          // host natijani ikkala tomonga yuboradi
-          renderResults(myName, myDraft, finisher, m.answers);
-
-          conn.send({ t:"GAME_OVER", hostName: myName, hostAnswers: myDraft, guestName: finisher, guestAnswers: m.answers });
-        } else {
-          // guest hostdan READY kelsa ham natijani ko'rsatadi (host keyin GAME_OVER yuboradi)
-          renderResults(finisher, m.answers, myName, myDraft);
+    4. SECURE YOUR DATABASE (Production):
+      a. For a real application, you should not use "test mode".
+      b. Go to your Realtime Database "Rules" tab.
+      c. Use rules that only allow authenticated users to read/write their own data.
+      d. A minimal rule for this game could be to allow anyone to read/write to a specific room:
+      {
+        "rules": {
+          "rooms": {
+            "$roomCode": {
+              ".read": "true",
+              ".write": "true"
+            }
+          }
         }
       }
-
-      if (m.t === "GAME_OVER" && role === "guest") {
-        renderResults(m.hostName, m.hostAnswers, m.guestName, m.guestAnswers);
-      }
-    });
-
-    conn.on("error", (e) => alert("Connection error: " + e));
-    conn.on("close", () => alert("Aloqa uzildi. Qayta urinib ko'ring."));
-  }
-
-  // UI events
-  $("btnCreate").onclick = () => {
-    role = "host";
-    show("view-host");
-
-    const code = genCode();
-    $("hostCode").textContent = code;
-    setStatus("hostStatus", "Peer serverga ulanmoqda...");
-
-    peer = createPeer(PREFIX + code);
-
-    peer.on("open", () => setStatus("hostStatus", "Xona tayyor. Raqib kutilmoqda..."));
-    peer.on("connection", (c) => {
-      conn = c;
-      wireConn();
-    });
-    peer.on("error", (e) => {
-      alert("Peer error: " + e.type + "\nQayta Create qilib ko'ring.");
-      location.reload();
-    });
-  };
-
-  $("btnJoin").onclick = () => {
-    role = "guest";
-
-    const code = ($("joinCode").value || "").trim().toUpperCase();
-    myName = ($("joinName").value || "").trim();
-    if (!code || !myName) { alert("Kod va ism kiriting!"); return; }
-
-    show("view-guest");
-    setStatus("guestStatus", "Peer tayyorlanmoqda...");
-
-    peer = createPeer(null);
-
-    peer.on("open", () => {
-      setStatus("guestStatus", "Hostga ulanmoqda...");
-      conn = peer.connect(PREFIX + code, { reliable: true });
-
-      conn.on("open", () => {
-        wireConn();
-        conn.send({ t:"JOIN", name: myName });
-      });
-
-      conn.on("error", () => {
-        alert("Xona topilmadi yoki ulanish bloklangan. Kodni tekshiring.");
-        location.reload();
-      });
-    });
-
-    peer.on("error", (e) => {
-      alert("Peer error: " + e.type);
-      location.reload();
-    });
-  };
-
-  $("btnStartGame").onclick = () => {
-    myName = ($("hostName").value || "").trim();
-    if (!myName) { alert("Ismingizni kiriting!"); return; }
-    if (!conn || !conn.open) { alert("Raqib ulanmagan."); return; }
-
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    letter = alphabet[Math.floor(Math.random() * alphabet.length)];
-
-    conn.send({ t:"START", letter, hostName: myName });
-    startGameplay();
-  };
-
-  $("btnReady").onclick = () => {
-    if (!conn || !conn.open) { alert("Ulanish yo'q."); return; }
-    if (!myName) myName = role === "host" ? ($("hostName").value || "Host") : myName;
-
-    if (!validateAll()) { setStatus("gameStatus", "Xato! Hammasi harf bilan boshlansin."); return; }
-
-    conn.send({ t:"READY", name: myName, answers: { ...myDraft } });
-
-    // host bo'lsa ham darhol natijaga o'tmaymiz — host natijani handle qiladi (READY kelganda)
-    // guest bo'lsa: natija hostdan keladi
-    setStatus("gameStatus", "Yuborildi. Natija kutilyapti...");
-  };
-
-  $("btnTotal").onclick = () => {
-    const a = Number($("s1").value || 0);
-    const b = Number($("s2").value || 0);
-    $("total").textContent = `Jami: ${a} : ${b}`;
-  };
-
-  // initial
-  show("view-start");
-})();
-</script>
+      This is still insecure but better than wide-open access. For a real app, implement Firebase Authentication.
+  -->
 </body>
 </html>

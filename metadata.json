@@ -1,0 +1,5 @@
+
+{
+  "name": "Real-Time Word Game",
+  "description": "A 2-player real-time word game where players come up with words starting with a randomly selected letter. Built with Angular and Firebase."
+}
